@@ -11,4 +11,4 @@ def healthz():
     return {"status": "ok"}
 
 
-# PR TEST
+# Github Access Key 및 Secret 제거 후 동작 체크
