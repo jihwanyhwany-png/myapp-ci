@@ -4,8 +4,10 @@ on:
   push:
     branches: ["main"]
 
+# OIDC 토큰 발급을 위해 id-token 권한이 필요함
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   build_and_push:
@@ -15,16 +17,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
+      # ✅ OIDC로 AWS Role Assume (Access Key/Secret Key 불필요)
+      - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: arn:aws:iam::940275034514:role/gha-ecr-push-main
           aws-region: ${{ secrets.AWS_REGION }}
 
+      # ✅ ECR 로그인 (위에서 얻은 임시 자격증명으로 수행됨)
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
+      # ✅ Docker build & push
       - name: Build and push
         env:
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
@@ -32,10 +36,15 @@ jobs:
           ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
+          set -euo pipefail
+
           ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
           IMAGE_URI="${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
 
+          echo "Building: ${IMAGE_URI}"
           docker build -t "${IMAGE_URI}" .
+
+          echo "Pushing: ${IMAGE_URI}"
           docker push "${IMAGE_URI}"
 
           echo "Pushed: ${IMAGE_URI}"
