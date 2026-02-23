@@ -1,0 +1,20 @@
+name: pr-build-only
+
+on:
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # PR에서는 "빌드가 되는지"만 확인
+      - name: Docker build (no push)
+        run: |
+          docker build -t myapp:pr-${{ github.event.pull_request.number }} .
